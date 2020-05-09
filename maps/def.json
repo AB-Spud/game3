@@ -1,0 +1,13 @@
+{
+    "level-name": "def",
+    "start-room": "spawn",
+    "res" : [1000, 500],
+    "fill": [255, 255, 255],
+    "spawn": [30, 400],
+    "static-objs" : {"spawn": { "b1" : [0,490, 1000,100], "b2": [0,0, 1000,10], "b3" :[0,0, 10,1000], "b4": [990,0, 10,1000]}},
+    "doors" : {"spawn": {}},
+    "goal": {"spawn": {}},
+    "ygrav": 4,
+    "max_vel": 2,
+    "friction": 0.5
+}
