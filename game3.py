@@ -134,10 +134,10 @@ class Game(object):
                             self.running = False
 
                         if event.key == pygame.K_SPACE:
-                            if bool(self.player.jumps):
+                            if bool(self.player.jumps): # evals jump int to boolean : n > 0 returns True
                                 self.ygrav = -self.ygrav
                                 self.player.jumps -= 1
-                                self.player.double_jump = False
+                                # self.player.double_jump = False
                                 self.player.toj = pygame.time.get_ticks()
 
                         if event.key == pygame.K_F2:
@@ -231,7 +231,7 @@ class Game(object):
                 
             if not self.saving and not self.paused:
                 mice = pygame.mouse.get_pressed() # this will get constant feed of input, instead of waiting in the event queue 
-                keys = pygame.key.get_pressed() # this will allow the player to hold a button and the action will continue until they let go
+                keys = pygame.key.get_pressed()   # allowing the player to hold a button and the action will continue until they let go
 
                 if mice[0]:
                     x,y = pygame.mouse.get_pos()
@@ -388,6 +388,7 @@ class Game(object):
             False
 
     def draw_rects_dict(self, dic, typ):
+        #use dict for color selection
         if typ == 'p':
             color = self.player_colors[list(dic.keys())[0]]
         elif typ == 'h':
