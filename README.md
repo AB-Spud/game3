@@ -19,7 +19,8 @@
   C : clears all placed boxes
 ```
 #### Description
-Early working build of a work in progress game.
+Early working build of a work in progress game - built using the pygame module.
+
 It might take a bit to launch using the .exe file.
 
 <a href="https://www.mediafire.com/file/s8rwpd9tm0tw62l/game3.exe/file">game3.exe download</a>
