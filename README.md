@@ -15,6 +15,8 @@
   - : decrease gravity
   [ : Lower box size
   ] : Increase box size
+  Z : deletes last placed box
+  C : clears all placed boxes
 ```
 #### Description
 Early working build of a work in progress game.
