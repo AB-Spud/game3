@@ -1,6 +1,6 @@
-# game3
+# game3/game5
 ## pygame game
-### Controls:
+### Controls - game3:
 ```
   ESC: unpauses game
   ENTER : pauses for a new map
@@ -15,6 +15,18 @@
   - : decrease gravity
   [ : Lower box size
   ] : Increase box size
+  Z : deletes last placed box
+  C : clears all placed boxes
+```
+### Controls - game5:
+```
+  A: move left
+  D: move right
+  SPACE: jump (double-jump)
+  0: Invert Gravity 
+  MOUSE-1: place static box
+  MOUSE-2: place non-static box
+  MIDDLE-MOUSE: move any box
   Z : deletes last placed box
   C : clears all placed boxes
 ```
