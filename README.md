@@ -23,7 +23,11 @@
   A: move left
   D: move right
   SPACE: jump (double-jump)
-  0: Invert Gravity 
+  0: Invert Gravity
+  + : increase gravity
+  - : decrease gravity
+  [ : Lower box size
+  ] : Increase box size
   MOUSE-1: place static box
   MOUSE-2: place non-static box
   MIDDLE-MOUSE: move any box
