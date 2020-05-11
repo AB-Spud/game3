@@ -37,7 +37,7 @@
   C : clears all placed boxes
 ```
 #### Description
-Early working build of a work in progress game - built using the pygame module.
+Early working build of a work in progress game - built using the pygame module. game5 does not work with pre-existing maps / maps made using game3.
 
 It might take a bit to launch using the .exe file.
 
