@@ -2,6 +2,7 @@
 ## pygame game
 ### Controls - game3:
 ```
+  Q: quit game
   ESC: unpauses game
   ENTER : pauses for a new map
   LEFT_CTRL + S: pauses game to be saved
@@ -20,6 +21,7 @@
 ```
 ### Controls - game5:
 ```
+  Q: quit game
   A: move left
   D: move right
   SPACE: jump (double-jump)
