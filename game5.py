@@ -1,4 +1,5 @@
 import pygame, json, os
+from pygame.locals import *
 from random import randint
 
 class BasicBlock(pygame.Rect):
@@ -47,6 +48,7 @@ class Game(object):
         self.running = True
 
         self.jumps = 2
+        self.dash = 1
 
         self.dt = 0
         self.tf = 0
@@ -72,7 +74,7 @@ class Game(object):
     
     def get_mouse_block(self):
         x,y = pygame.mouse.get_pos()
-        return pygame.Rect(x-5,y-5,0,0), x,y
+        return pygame.Rect(x,y,5,5), x,y
     
     def calc_vels(self, x, y, obj): # no use for now
         X = x - obj.x
@@ -105,25 +107,32 @@ class Game(object):
                 G = self.compute_grav_accel(r1)
                 r1.vely+= G * (self.dt/1000)
 
-                r1.move(0, r1.vely) # y velocity collision checks
+                r1.move(0, r1.vely) # Y velocity collision checks
                 for r2 in rect_list:
                     if r1.uid != r2.uid:
                         if r1.colliderect(r2):
                             r1.move(0,-r1.vely)
                             r1.vely = r1.vely - r1.vely
                             if r1.uid == player.uid:
-                                self.jumps = 2    
+                                self.jumps = 2
                     
-                r1.move(r1.velx, 0) # x velocity collison checks
+                r1.move(r1.velx, 0) # X velocity collison checks
                 for r2 in rect_list:
                     if r1.uid != r2.uid:
                         if r1.colliderect(r2):
                             r1.move(-r1.velx, 0)
                             if not r2.static:
-                                r2.velx = r1.velx * .5 # the *.5 modifier can be used to simulate a sort of weight
-                                                       # the more objects that collide the less velecity is shared
-                                                       # note : add a more complex way to calculate based off of block weight
-                
+                                if r1.velx > 0:
+                                    if (r1.velx - r2.mass + r1.mass) <= 0:
+                                        pass
+                                    else:
+                                        r2.velx = r1.velx - r2.mass + r1.mass
+                                else:
+                                    if (r1.velx + r2.mass - r1.mass) >= 0:
+                                        pass
+                                    else:
+                                        r2.velx = r1.velx + r2.mass - r1.mass
+              
     def draw_rects(self, screen, rect_list):
         for r in rect_list:
             pygame.draw.rect(screen, r.color, r)
@@ -141,7 +150,7 @@ class Game(object):
                 
                 if event.button == 3:
                     x,y = pygame.mouse.get_pos()
-                    b = NonStaticBlock(.5, (x-(self.box_size/2),y-(self.box_size/2),self.box_size,self.box_size), color=(200,55,55))
+                    b = NonStaticBlock(2, (x-(self.box_size/2),y-(self.box_size/2),self.box_size,self.box_size), color=(200,55,55))
                     self.blocks.append(b)
 
             if event.type == pygame.KEYDOWN:
@@ -154,7 +163,7 @@ class Game(object):
                 
                 if event.key == pygame.K_0:
                     self.grav = -self.grav
-                
+                                
                 if event.key == pygame.K_EQUALS:
                     self.grav+=1
                 
@@ -190,6 +199,13 @@ class Game(object):
             player.velx += self.accel_speed
             if player.velx > -self.max_accel:
                 player.velx = -self.max_accel
+        
+        # Needs cooldowns
+        # if self.keys[pygame.K_LCTRL] and bool(self.dash) and self.keys[pygame.K_d]:
+        #     player.velx += 5
+        
+        # if self.keys[pygame.K_LCTRL] and bool(self.dash) and self.keys[pygame.K_a]:
+        #     player.velx -= 5
 
         if self.keys[pygame.K_LEFTBRACKET]:
             if self.box_size > 1:
@@ -244,11 +260,11 @@ class Map(object):
 
     def default_map(self):
         color = (0,0,0)
-        block = StaticBlock(10,(0, 490, 1000, 10), color=color)
+        block = StaticBlock(10,(0, 490, 1000, 1000), color=color)
         block2 = StaticBlock(10,(0, 0, 1000, 10), color=color)
 
         block3 = StaticBlock(10,(0, 0, 10, 500), color=color)
-        block4 = StaticBlock(10,(990, 0, 10, 500), color=color)
+        block4 = StaticBlock(10,(990, 0, 1000, 500), color=color)
 
         return [block,block2,block3,block4]
 
