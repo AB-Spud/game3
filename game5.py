@@ -61,6 +61,9 @@ class Game(object):
         self.dt = 0
         self.tf = 0
 
+        self.draw_tick = 0
+        self.draw_delay = 20
+
         self.click_x = 0
         self.click_y = 0
 
@@ -172,6 +175,11 @@ class Game(object):
             else:
                 picture = pygame.transform.scale(self.materials[r.material], (r.width, r.height))
                 screen.blit(picture, r)
+    
+    def draw_bg(self, bg_image):
+        if self.tick - self.draw_tick >= self.draw_delay:
+            self.level.screen.blit(bg_image, (0,0))
+            self.draw_tick = self.tick
 
     def event_loop(self, player):
         for event in pygame.event.get():
@@ -328,10 +336,12 @@ class Game(object):
         while self.running:
             # self.level.screen.fill((155,155,155))
             self.clock.tick(self.tick_rate)
+            self.tick = pygame.time.get_ticks()
             self.record_times()
             self.record_pressed()
             self.mouse_block = self.get_mouse_block()
-            self.level.screen.blit(bg_image, (0,0))
+
+            self.draw_bg(bg_image)
 
             self.event_loop(player)
             self.pressed(player)
