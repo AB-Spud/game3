@@ -68,6 +68,11 @@ class Game(object):
         self.dt = 0
         self.tf = 0
 
+        self.win = False
+        self.win_tick = 0
+        self.last_win = 0
+        self.win_cooldown = 4000
+
         self.draw_tick = 0
         self.draw_delay = 10
 
@@ -187,7 +192,25 @@ class Game(object):
                                         pass
                                     else:
                                         r2.velx = r1.velx + r2.mass - r1.mass
-              
+
+    def display_win(self):
+        millis = self.win_tick-self.last_win
+        seconds=(millis/1000) % 60
+        minutes=(millis/(1000*60))%60
+        minutes = int(minutes)
+
+        win_txt = self.font.render(f"You won, in %d minutes and %f seconds!" % (minutes, seconds), False, (255, 155, 0))    
+        r = self.level.screen.get_rect()
+        rect = pygame.Rect(0,0,420,30)
+        rect.center=r.center
+        pygame.draw.rect(self.level.screen, (0,255,0), rect, 3)
+        pygame.draw.rect(self.level.screen, (10,10,10), rect, 0)
+        self.level.screen.blit(win_txt, rect.topleft)
+        
+        if self.tick - self.win_tick >= self.win_cooldown:
+            self.last_win = self.win_tick
+            self.win = False
+
     def draw_rects(self, screen, rect_list):
         for r in rect_list:
             if r.material == "none":
@@ -198,7 +221,6 @@ class Game(object):
         
         pygame.draw.rect(self.level.screen, self.goal.color, self.goal)
 
-    
     def draw_bg(self, bg_image):
         if self.tick - self.draw_tick >= self.draw_delay:
             self.level.screen.blit(bg_image, (0,0))
@@ -229,8 +251,7 @@ class Game(object):
                 if event.button == 3:
                     if self.box_size_x < 0 and self.box_size_y < 0:
                         b = NonStaticBlock(2, (n_x, n_y, abs(self.box_size_x),abs(self.box_size_y)), self.current_mat, color=(200,55,55))
-                        
-                    self.blocks.append(b)
+                        self.blocks.append(b)
             
             if event.type == pygame.MOUSEMOTION and self.moving:
                 self.ref.move_c(event.rel[0], event.rel[1])
@@ -245,6 +266,7 @@ class Game(object):
                 if event.key == pygame.K_h:
                     self.blocks = self.level.load_map()
                     player.move_to(37, 1013)
+                    self.last_win = self.tick
                     self.blocks.append(player)
 
                 if event.key == pygame.K_q:
@@ -348,7 +370,7 @@ class Game(object):
         player = PlayerBlock(1,(37, 1013, 10, 10), material="none" ,color=(255,0,0))
         self.goal = GoalBlock((26, 46, 50, 50), "none", (255,255,0))
         pygame.display.set_caption(f"v5.2 - working build - textures")
-        font = pygame.font.SysFont('Arial', 20)
+        self.font = pygame.font.SysFont('Arial', 20)
 
         self.blocks = self.level.default_map()
         self.blocks.append(player)
@@ -374,18 +396,23 @@ class Game(object):
 
             if self.goal.reached(player):
                 player.move_to(37, 1013)
+                self.win_tick = self.tick
+                self.win = True
 
             if not boundary.contains(player):
                 player.move_to(37, 1013)
+            
+            if self.win:
+                self.display_win()
 
-            xv_txt = font.render(f'x-velocity: {player.velx}', False, (255, 0, 0))
-            yv_txt = font.render(f'y-velocity: {player.vely}', False, (255, 0, 0))
-            grav_txt = font.render(f'gravity: {self.grav}', False, (255, 0, 0))
-            dt_txt = font.render(f'dt: {self.dt} (above 6 = bad)', False, (255, 0, 0))
-            fps_txt = font.render('FPS: {0:.8}'.format(self.clock.get_fps()), False, (255, 0, 0))
-            boxsz_txt = font.render(f"box_size: {self.box_size_x}x{self.box_size_y}", False, (255,0,0))
-            blocks_txt = font.render(f"blocks: {len(self.blocks)}", False, (255,0,0))
-            mat_txt = font.render(f"current_mat: {self.current_mat}", False, (255,0,0))
+            xv_txt = self.font.render(f'x-velocity: {player.velx}', False, (255, 0, 0))
+            yv_txt = self.font.render(f'y-velocity: {player.vely}', False, (255, 0, 0))
+            grav_txt = self.font.render(f'gravity: {self.grav}', False, (255, 0, 0))
+            dt_txt = self.font.render(f'dt: {self.dt} (above 6 = bad)', False, (255, 0, 0))
+            fps_txt = self.font.render('FPS: {0:.8}'.format(self.clock.get_fps()), False, (255, 0, 0))
+            boxsz_txt = self.font.render(f"box_size: {self.box_size_x}x{self.box_size_y}", False, (255,0,0))
+            blocks_txt = self.font.render(f"blocks: {len(self.blocks)}", False, (255,0,0))
+            mat_txt = self.font.render(f"current_mat: {self.current_mat}", False, (255,0,0))
 
             if self.draw_data == 1:
                 self.level.screen.blit(boxsz_txt, (1700,10))
