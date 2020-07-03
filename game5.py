@@ -17,13 +17,20 @@ class BasicBlock(pygame.Rect):
         self.rect_data[1] = y
         super().__init__(self.rect_data)
     
-    def move(self, x,y):
+    def move_c(self, x,y):
         self.rect_data[0] += x
         self.rect_data[1] += y
         super().__init__(self.rect_data, color=self.color)
     
     def is_clicked(self, mbtn=0):
         return pygame.mouse.get_pressed()[mbtn] and self.collidepoint(pygame.mouse.get_pos())
+
+class GoalBlock(BasicBlock):
+    def __init__(self, rect_data, material, color):
+        super().__init__(rect_data, material=material, color=color)
+    
+    def reached(self, rect):
+        return self.colliderect(rect)
 
 class StaticBlock(BasicBlock):
     def __init__(self, mass, rect_data, material, color):
@@ -62,7 +69,7 @@ class Game(object):
         self.tf = 0
 
         self.draw_tick = 0
-        self.draw_delay = 20
+        self.draw_delay = 10
 
         self.click_x = 0
         self.click_y = 0
@@ -113,6 +120,18 @@ class Game(object):
         Y = y - obj.x
         return (X/self.dt), (Y/self.dt)
     
+    def calc_normal_coords(self, x,y):
+        if self.box_size_x < 0 and self.box_size_y < 0:
+            return self.click_x, self.click_y
+            
+        elif self.box_size_x < 0:
+            return self.click_x, y
+
+        elif self.box_size_y < 0:
+            return x,self.click_y
+        else:
+            return x,y
+    
     def compute_grav_accel(self, obj): # computes give objects gravity acceleration speed
         return obj.mass * self.grav
 
@@ -132,6 +151,7 @@ class Game(object):
             if r1.is_clicked(1):
                 self.ref = r1
                 self.moving = True
+                pygame.draw.rect(self.level.screen, (0,255,0), r1, 3) # show's selection
 
             if not r1.static:
                 self.apply_drag_force(r1, self.drag)
@@ -142,20 +162,20 @@ class Game(object):
                 if abs(r1.vely) > r1.terminal:
                     r1.vely = r1.terminal
 
-                r1.move(0, r1.vely) # Y velocity collision checks
+                r1.move_c(0, r1.vely) # Y velocity collision checks
                 for r2 in rect_list:
                     if r1.uid != r2.uid:
                         if r1.colliderect(r2):
-                            r1.move(0,-r1.vely)
+                            r1.move_c(0,-r1.vely)
                             r1.vely = r1.vely - r1.vely
                             if r1.uid == player.uid:
                                 self.jumps = 2
                     
-                r1.move(r1.velx, 0) # X velocity collison checks
+                r1.move_c(r1.velx, 0) # X velocity collison checks
                 for r2 in rect_list:
                     if r1.uid != r2.uid:
                         if r1.colliderect(r2):
-                            r1.move(-r1.velx, 0)
+                            r1.move_c(-r1.velx, 0)
                             if not r2.static:
                                 if r1.velx > 0:
                                     if (r1.velx - r2.mass + r1.mass) <= 0:
@@ -175,6 +195,9 @@ class Game(object):
             else:
                 picture = pygame.transform.scale(self.materials[r.material], (r.width, r.height))
                 screen.blit(picture, r)
+        
+        pygame.draw.rect(self.level.screen, self.goal.color, self.goal)
+
     
     def draw_bg(self, bg_image):
         if self.tick - self.draw_tick >= self.draw_delay:
@@ -194,9 +217,10 @@ class Game(object):
                 self.box_size_x = self.click_x - x
                 self.box_size_y = self.click_y - y
 
+                n_x, n_y = self.calc_normal_coords(x,y)
+
                 if event.button == 1:
-                    b = StaticBlock(10, (x,y,self.box_size_x,self.box_size_y), self.current_mat, color=(255,255,255))
-                    b.normalize()
+                    b = StaticBlock(10, (n_x, n_y, abs(self.box_size_x) ,abs(self.box_size_y)), self.current_mat, color=(255,255,255))
                     self.blocks.append(b)
                 
                 if event.button == 2:
@@ -204,14 +228,12 @@ class Game(object):
                 
                 if event.button == 3:
                     if self.box_size_x < 0 and self.box_size_y < 0:
-                        b = NonStaticBlock(2, (self.click_x,self.click_y, abs(self.box_size_x),abs(self.box_size_y)), self.current_mat, color=(200,55,55))
-                    else:
-                        b = NonStaticBlock(2, (x,y, abs(self.box_size_x),abs(self.box_size_y)), self.current_mat, color=(200,55,55))
-                    b.normalize()
+                        b = NonStaticBlock(2, (n_x, n_y, abs(self.box_size_x),abs(self.box_size_y)), self.current_mat, color=(200,55,55))
+                        
                     self.blocks.append(b)
             
             if event.type == pygame.MOUSEMOTION and self.moving:
-                self.ref.move_ip(event.rel)
+                self.ref.move_c(event.rel[0], event.rel[1])
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F3:
@@ -269,7 +291,7 @@ class Game(object):
                 
                         self.jumps-=1
 
-                if event.key == pygame.K_z:
+                if event.key == pygame.K_z and len(self.blocks) > 0:
                     self.blocks.pop()
                 
                 if event.key == pygame.K_c:
@@ -324,6 +346,7 @@ class Game(object):
         self.level = Map()
         boundary = BasicBlock((0,0,1920,1080), "none")
         player = PlayerBlock(1,(37, 1013, 10, 10), material="none" ,color=(255,0,0))
+        self.goal = GoalBlock((26, 46, 50, 50), "none", (255,255,0))
         pygame.display.set_caption(f"v5.2 - working build - textures")
         font = pygame.font.SysFont('Arial', 20)
 
@@ -341,14 +364,16 @@ class Game(object):
             self.record_pressed()
             self.mouse_block = self.get_mouse_block()
 
-            self.draw_bg(bg_image)
-
             self.event_loop(player)
             self.pressed(player)
 
             self.reaction_loop(self.blocks, player)
 
+            self.draw_bg(bg_image)
             self.draw_rects(self.level.screen, self.blocks)
+
+            if self.goal.reached(player):
+                player.move_to(37, 1013)
 
             if not boundary.contains(player):
                 player.move_to(37, 1013)
@@ -356,6 +381,7 @@ class Game(object):
             xv_txt = font.render(f'x-velocity: {player.velx}', False, (255, 0, 0))
             yv_txt = font.render(f'y-velocity: {player.vely}', False, (255, 0, 0))
             grav_txt = font.render(f'gravity: {self.grav}', False, (255, 0, 0))
+            dt_txt = font.render(f'dt: {self.dt} (above 6 = bad)', False, (255, 0, 0))
             fps_txt = font.render('FPS: {0:.8}'.format(self.clock.get_fps()), False, (255, 0, 0))
             boxsz_txt = font.render(f"box_size: {self.box_size_x}x{self.box_size_y}", False, (255,0,0))
             blocks_txt = font.render(f"blocks: {len(self.blocks)}", False, (255,0,0))
@@ -369,6 +395,7 @@ class Game(object):
                 self.level.screen.blit(xv_txt, (20, 60))
                 self.level.screen.blit(grav_txt, (20, 80))
                 self.level.screen.blit(mat_txt, (20, 100))
+                self.level.screen.blit(dt_txt, (20, 120))
 
             pygame.display.flip()
 
@@ -391,7 +418,9 @@ class Map(object):
         blocks = []
         map_data = json.load(open("resources/maps/tut.json", "r"))
         for i in map_data['blocks']:
-            blocks.append(StaticBlock(10, i, "none", color=(255,255,255)))
+            b = StaticBlock(10, i, "none", color=(255,255,255))
+            b.normalize()
+            blocks.append(b)
         
         return blocks
 
