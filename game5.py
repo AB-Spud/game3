@@ -51,6 +51,9 @@ class PlayerBlock(NonStaticBlock):
     def __init__(self, mass, rect_data, material, color):
         self.material = material
         super().__init__(mass, rect_data, material=material, color=color)
+    
+    def get_offset(self): # fix so inverted gravity works with as well
+        return (self.rect_data[0], self.rect_data[1]-5, self.rect_data[2], self.rect_data[3])
 
 class Game(object):
     def __init__(self, grav, tick_rate):
@@ -61,12 +64,9 @@ class Game(object):
         self.running = True
         self.draw_data = -1
 
-        self.jumps = 2
-        self.dash = 1
-        self.lives = 3
-
         self.dt = 0
         self.tf = 0
+        self.loc = 37, 1010
 
         self.win = False
         self.win_tick = 0
@@ -75,6 +75,7 @@ class Game(object):
 
         self.draw_tick = 0
         self.draw_delay = 10
+        self.draw = 1
 
         self.click_x = 0
         self.click_y = 0
@@ -89,6 +90,7 @@ class Game(object):
         self.mice = None
 
         self.materials = {}
+        self.sprites = {}
 
         self.current_mat = "none"
         self.mat_count = 0
@@ -119,6 +121,18 @@ class Game(object):
                 self.materials[i.split(".")[0]] = pygame.image.load(f"resources/materials/{i}").convert()
             except Exception as error:
                 print(error)
+    
+    def load_sprites(self):
+        a = os.listdir("resources/sprites")
+        self.sprites['none'] = 'none'
+        for i in a:
+            path = i
+            self.sprites[i] = {}
+            d= 0
+            for x in os.listdir(f"resources/sprites/{i}"):
+                self.sprites[i][d] = pygame.image.load(f"resources/sprites/{i}/{x}")
+                d+=1
+            
     
     def calc_vels(self, x, y, obj): # no use for now
         X = x - obj.x
@@ -171,10 +185,11 @@ class Game(object):
                 for r2 in rect_list:
                     if r1.uid != r2.uid:
                         if r1.colliderect(r2):
+                            self.loc = (r1.x ,r1.y-2) # move to function - beware of inverse gravity 
                             r1.move_c(0,-r1.vely)
                             r1.vely = r1.vely - r1.vely
-                            if r1.uid == player.uid:
-                                self.jumps = 2
+                            if r1.uid == player.state.uid:
+                                player.jumps = 2
                     
                 r1.move_c(r1.velx, 0) # X velocity collison checks
                 for r2 in rect_list:
@@ -211,20 +226,30 @@ class Game(object):
             self.last_win = self.win_tick
             self.win = False
 
-    def draw_rects(self, screen, rect_list):
+    def draw_rects(self, screen, rect_list, player):
         for r in rect_list:
             if r.material == "none":
                 pygame.draw.rect(screen, r.color, r, 2)
             else:
-                picture = pygame.transform.scale(self.materials[r.material], (r.width, r.height))
-                screen.blit(picture, r)
+                if r.uid != player.uid:
+                    picture = pygame.transform.scale(self.materials[r.material], (r.width, r.height))
+                    screen.blit(picture, r.get_offset() or r)
         
         pygame.draw.rect(self.level.screen, self.goal.color, self.goal)
+    
+    def draw_sprites(self, screen, r):
+        if r.material == "none":
+            pass
+        else:
+            picture = pygame.transform.scale(self.sprites['player2'][r.material], (r.width, r.height))
+            screen.blit(picture, r.get_offset() or r)
 
-    def draw_bg(self, bg_image):
-        if self.tick - self.draw_tick >= self.draw_delay:
+    def draw_bg(self, bg_image, player):
+        if self.tick - self.draw_tick >= self.draw_delay and self.draw == 0:
             self.level.screen.blit(bg_image, (0,0))
             self.draw_tick = self.tick
+        elif self.draw == 1:
+            self.level.screen.fill((0,0,0))
 
     def event_loop(self, player):
         for event in pygame.event.get():
@@ -252,29 +277,45 @@ class Game(object):
                     if self.box_size_x < 0 and self.box_size_y < 0:
                         b = NonStaticBlock(2, (n_x, n_y, abs(self.box_size_x),abs(self.box_size_y)), self.current_mat, color=(200,55,55))
                         self.blocks.append(b)
+                
             
             if event.type == pygame.MOUSEMOTION and self.moving:
                 self.ref.move_c(event.rel[0], event.rel[1])
 
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    player.jump(game.grav, 2.13)
+                
+                if event.key == pygame.K_b:
+                    player.jump(game.grav, 2.13)
+
                 if event.key == pygame.K_F3:
                    self.draw_data = -self.draw_data
+                
+                if event.key == pygame.K_F7:
+                    pygame.image.save(self.level.screen, f"{self.tick}.jpeg")
 
                 if event.key == pygame.K_g:
                     self.level.save_map(self.blocks)
                 
-                if event.key == pygame.K_h:
-                    self.blocks = self.level.load_map()
-                    player.move_to(37, 1013)
+                if event.key == pygame.K_1:
+                    self.blocks = self.level.load_map('b')
+                    player.tp(self.loc)
                     self.last_win = self.tick
-                    self.blocks.append(player)
+                    self.blocks.append(player.state)
+                
+                if event.key == pygame.K_2:
+                    self.blocks = self.level.load_map('c')
+                    player.tp(self.loc)
+                    self.last_win = self.tick
+                    self.blocks.append(player.state)
 
                 if event.key == pygame.K_q:
                     self.running = False
                 
                 if event.key == pygame.K_LSHIFT:
                     x,y = pygame.mouse.get_pos()
-                    player.move_to(x,y)
+                    player.state.move_to(x,y)
                 
                 if event.key == pygame.K_0:
                     self.grav = -self.grav
@@ -301,35 +342,19 @@ class Game(object):
                     
                     self.current_mat = a[self.mat_count]
 
-                if event.key == pygame.K_SPACE:
-                    if bool(self.jumps):
-                        if game.grav > 0:
-                            player.vely -= 2.1
-                        elif game.grav < 0:
-                            player.vely += 2.1
-                        else:
-                            pass # nothing interesting happens when gravity is set to 0
-                                 # note : try checking collisions for value to offset here
-                
-                        self.jumps-=1
-
                 if event.key == pygame.K_z and len(self.blocks) > 0:
                     self.blocks.pop()
                 
                 if event.key == pygame.K_c:
                     self.blocks = self.level.default_map()
-                    self.blocks.append(player)
+                    self.blocks.append(player.state)
 
     def pressed(self, player):
         if self.keys[pygame.K_a]:
-            player.velx += -self.accel_speed
-            if player.velx < self.max_accel:
-                player.velx = self.max_accel
+            player.move_left(self.accel_speed)
 
         if self.keys[pygame.K_d]:
-            player.velx += self.accel_speed
-            if player.velx > -self.max_accel:
-                player.velx = -self.max_accel
+            player.move_right(self.accel_speed)
         
         # Needs cooldowns
         # if self.keys[pygame.K_LCTRL] and bool(self.dash) and self.keys[pygame.K_d]:
@@ -366,47 +391,56 @@ class Game(object):
 
     def game_loop(self):
         self.level = Map()
+        game.load_materials()
+        game.load_sprites()
         boundary = BasicBlock((0,0,1920,1080), "none")
-        player = PlayerBlock(1,(37, 1013, 10, 10), material="none" ,color=(255,0,0))
+        state = PlayerBlock(1,(37, 1013, 12, 12), material="none" ,color=(255,0,0))
+        player = PlayerObj(self.sprites['player2'], state, self.max_accel)
         self.goal = GoalBlock((26, 46, 50, 50), "none", (255,255,0))
         pygame.display.set_caption(f"v5.2 - working build - textures")
         self.font = pygame.font.SysFont('Arial', 20)
 
         self.blocks = self.level.default_map()
-        self.blocks.append(player)
-        game.load_materials()
+        self.blocks.append(player.state)
+
         bg_image = pygame.transform.scale(self.materials["bg_sky"], (1920, 1080))
         print(self.level.screen.get_flags())
 
         while self.running:
-            # self.level.screen.fill((155,155,155))
             self.clock.tick(self.tick_rate)
             self.tick = pygame.time.get_ticks()
             self.record_times()
             self.record_pressed()
             self.mouse_block = self.get_mouse_block()
 
+            player.prev_state = player.state
+
+            self.draw_bg(bg_image, player)
+
             self.event_loop(player)
             self.pressed(player)
 
             self.reaction_loop(self.blocks, player)
 
-            self.draw_bg(bg_image)
-            self.draw_rects(self.level.screen, self.blocks)
+            self.draw_rects(self.level.screen, self.blocks, player)
 
-            if self.goal.reached(player):
-                player.move_to(37, 1013)
+            self.draw_sprites(self.level.screen, player.state)
+
+            player.animate(self.tick)
+            
+            if self.goal.reached(player.state):
+                player.tp(self.loc)
                 self.win_tick = self.tick
                 self.win = True
 
-            if not boundary.contains(player):
-                player.move_to(37, 1013)
+            if not boundary.contains(player.state):
+                player.died(self.loc)
             
             if self.win:
                 self.display_win()
 
-            xv_txt = self.font.render(f'x-velocity: {player.velx}', False, (255, 0, 0))
-            yv_txt = self.font.render(f'y-velocity: {player.vely}', False, (255, 0, 0))
+            xv_txt = self.font.render(f'x-velocity: {player.state.velx}', False, (255, 0, 0))
+            yv_txt = self.font.render(f'y-velocity: {player.state.vely}', False, (255, 0, 0))
             grav_txt = self.font.render(f'gravity: {self.grav}', False, (255, 0, 0))
             dt_txt = self.font.render(f'dt: {self.dt} (above 6 = bad)', False, (255, 0, 0))
             fps_txt = self.font.render('FPS: {0:.8}'.format(self.clock.get_fps()), False, (255, 0, 0))
@@ -441,9 +475,9 @@ class Map(object):
                 print(i.rect_data)
         json.dump({"blocks": map_data}, open("resources/maps/tut.json", "w"))
     
-    def load_map(self):
+    def load_map(self, var):
         blocks = []
-        map_data = json.load(open("resources/maps/tut.json", "r"))
+        map_data = json.load(open(f"resources/maps/tut-{var}.json", "r"))
         for i in map_data['blocks']:
             b = StaticBlock(10, i, "none", color=(255,255,255))
             b.normalize()
@@ -459,6 +493,90 @@ class Map(object):
         block3 = StaticBlock(10, (0,-10,1920,10), "none", color=(0,0,0))
 
         return [block1, block2, block3]
+
+class PlayerObj(object):
+    def __init__(self, sprite_data, state_data, max_accel):
+        self.sprite_data = sprite_data
+        self.state = state_data
+        self.prev_state = state_data
+        self.max_accel = max_accel
+        self.uid = state_data.uid
+
+        self.jumps = 2
+        self.dashes = 1
+        self.lives = 3
+
+        self.ani_index = 0
+        self.ani_start = 0
+        self.ani_limit = 0
+
+        self.ani_tick = 0
+    
+    def move_left(self, accel_speed):
+        self.animate_left()
+        self.state.velx += -accel_speed
+        if self.state.velx < self.max_accel:
+            self.state.velx = self.max_accel
+    
+    def move_right(self, accel_speed):
+        self.animate_right()
+        self.state.velx += accel_speed
+        if self.state.velx > -self.max_accel:
+            self.state.velx = -self.max_accel
+        
+    def jump(self, grav, accel_speed):
+        if bool(self.jumps):
+            if grav > 0:
+                self.state.vely -= accel_speed
+            elif grav < 0:
+                self.state.vely += accel_speed
+            else:
+                b = randint(0,1)
+                if b == 1:
+                    self.state.vely += accel_speed
+                elif b == 0:
+                    self.state.vely -= accel_speed
+                
+                print(b)
+
+            self.jumps -=1
+    
+    def animate_left(self):
+        self.ani_start = 1
+        self.ani_limit = 1
+        self.ani_index = 1
+
+    def animate_right(self):
+        self.ani_start = 0
+        self.ani_limit = 0
+        self.ani_index = 0
+
+    def animate(self, tick):
+        if tick - self.ani_tick >= 100:
+            self.state.material = self.ani_index
+            self.ani_tick = tick
+            self.ani_index += 1
+            if self.ani_index >= self.ani_limit:
+                self.ani_index = self.ani_start
+
+    def died(self, loc): 
+        self.lives-=1
+        self.state.move_to(loc[0], loc[1])
+    
+    def tp(self, loc):
+        self.state.move_to(loc[0], loc[1])
+
+class GeneralField(object):
+    def __init__(self, state_data):
+        self.state = state_data
+        self.uid = state_data.uid
+    
+    def field_contains(self, obj_state):
+        return self.colliderect(rect)
+    
+    def call(self, func):
+        func()
+
 
 game = Game(9, 200)
 game.game_loop()
